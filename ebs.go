@@ -16,34 +16,45 @@ import (
 )
 
 func volumeFromName(svc *ec2.EC2, volumeName, az string) (*ec2.Volume, error) {
-	input := &ec2.DescribeVolumesInput{
-		Filters: []*ec2.Filter{
-			{
-				Name:   aws.String("tag:Name"),
-				Values: []*string{aws.String(volumeName)},
-			},
-			{
-				Name:   aws.String("availability-zone"),
-				Values: []*string{aws.String(az)},
-			},
-		},
+
+	b := &backoff.Backoff{
+		Min:    5 * time.Second,
+		Max:    350 * time.Second,
+		Factor: 2,
+		Jitter: false,
 	}
 
-	result, err := svc.DescribeVolumes(input)
-	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			return nil, aerr
+	for {
+		time.Sleep(b.Duration())
+		input := &ec2.DescribeVolumesInput{
+			Filters: []*ec2.Filter{
+				{
+					Name:   aws.String("tag:Name"),
+					Values: []*string{aws.String(volumeName)},
+				},
+				{
+					Name:   aws.String("availability-zone"),
+					Values: []*string{aws.String(az)},
+				},
+			},
 		}
-		return nil, err
+
+		result, err := svc.DescribeVolumes(input)
+		if err != nil {
+			if aerr, ok := err.(awserr.Error); ok {
+				return nil, aerr
+			}
+			return nil, err
+		}
+
+		if len(result.Volumes) == 0 {
+			log.Printf("cannot find volume-id with name: %s, retrying...", volumeName)
+			continue
+		}
+
+		log.Printf("Resolved volume %s to %s\n", volumeName, *result.Volumes[0].VolumeId)
+		return result.Volumes[0], nil
 	}
-
-	if len(result.Volumes) == 0 {
-		return nil, fmt.Errorf("cannot find volume-id with name: %s", volumeName)
-	}
-
-	log.Printf("Resolved volume %s to %s\n", volumeName, *result.Volumes[0].VolumeId)
-
-	return result.Volumes[0], nil
 }
 
 func attachVolume(svc *ec2.EC2, instanceID string, volume *ec2.Volume) error {
@@ -57,7 +68,7 @@ func attachVolume(svc *ec2.EC2, instanceID string, volume *ec2.Volume) error {
 	}
 
 	input := &ec2.AttachVolumeInput{
-		Device:     aws.String(blockDevice),
+		Device:     aws.String(blockDeviceAWS),
 		InstanceId: aws.String(instanceID),
 		VolumeId:   volume.VolumeId,
 	}
@@ -78,6 +89,7 @@ func attachVolume(svc *ec2.EC2, instanceID string, volume *ec2.Volume) error {
 	}
 
 	for {
+		time.Sleep(b.Duration())
 		volumeDescs, err := svc.DescribeVolumes(&ec2.DescribeVolumesInput{
 			VolumeIds: []*string{volume.VolumeId},
 		})
@@ -99,19 +111,26 @@ func attachVolume(svc *ec2.EC2, instanceID string, volume *ec2.Volume) error {
 		}
 
 		log.Printf("Waiting for attachment to complete. Current state: %s", *volumes[0].Attachments[0].State)
-		b.Duration()
 	}
 
 	log.Printf("Attached volume %s to instance %s as device %s\n",
-		*volume.VolumeId, instanceID, blockDevice)
+		*volume.VolumeId, instanceID, blockDeviceAWS)
 
 	return nil
 }
 
-func ensureVolumeInited(blockDevice, fileSystemFormatType, fileSystemFormatArguments string) error {
-	log.Printf("Checking for existing filesystem on device: %s\n", blockDevice)
+func ensureVolumeInited(blockDeviceOS, fileSystemFormatType, fileSystemFormatArguments string) error {
 
-	if err := exec.Command("sudo", "/usr/sbin/blkid", blockDevice).Run(); err == nil {
+	b := &backoff.Backoff{
+		Min:    100 * time.Millisecond,
+		Max:    100 * time.Second,
+		Factor: 2,
+		Jitter: false,
+	}
+
+	log.Printf("Checking for existing filesystem on device: %s\n", blockDeviceOS)
+
+	if err := exec.Command("sudo", "/usr/sbin/blkid", blockDeviceOS).Run(); err == nil {
 		log.Println("Found existing filesystem")
 		return nil
 	}
@@ -119,17 +138,22 @@ func ensureVolumeInited(blockDevice, fileSystemFormatType, fileSystemFormatArgum
 	log.Println("Filesystem not present")
 
 	// format volume here
-	cmd := exec.Command("sudo", "/usr/sbin/mkfs."+fileSystemFormatType, blockDevice, fileSystemFormatArguments)
-	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-	if err := cmd.Run(); err != nil {
-		return errors.Wrap(err, "mkfs."+fileSystemFormatType+" failed")
+	for {
+		time.Sleep(b.Duration())
+		cmd := exec.Command("sudo", "/usr/sbin/mkfs."+fileSystemFormatType, blockDeviceOS)
+		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+		if err := cmd.Run(); err != nil {
+			log.Println(errors.Wrap(err, "mkfs."+fileSystemFormatType+" failed"))
+		} else {
+			break
+		}
 	}
 
 	return nil
 }
 
-func ensureVolumeMounted(blockDevice, mountPoint string) error {
-	log.Printf("Mounting device %s at %s\n", blockDevice, mountPoint)
+func ensureVolumeMounted(blockDeviceOS, mountPoint string) error {
+	log.Printf("Mounting device %s at %s\n", blockDeviceOS, mountPoint)
 
 	// ensure mount point exists
 	cmd := exec.Command("sudo", "mkdir", "-p", mountPoint)
@@ -138,10 +162,10 @@ func ensureVolumeMounted(blockDevice, mountPoint string) error {
 		return errors.Wrap(err, "mountpoint creation failed")
 	}
 
-	cmd = exec.Command("sudo", "mount", blockDevice, mountPoint)
+	cmd = exec.Command("sudo", "mount", blockDeviceOS, mountPoint)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	if err := cmd.Run(); err == nil {
-		log.Printf("Device %s successfully mounted at %s\n", blockDevice, mountPoint)
+		log.Printf("Device %s successfully mounted at %s\n", blockDeviceOS, mountPoint)
 		return nil
 	}
 
@@ -152,8 +176,8 @@ func ensureVolumeMounted(blockDevice, mountPoint string) error {
 		return errors.Wrap(err, "cannot mount or verify mount. cowardly refusing to continue")
 	}
 
-	if strings.Contains(string(out), fmt.Sprintf("%s on %s", blockDevice, mountPoint)) {
-		log.Printf("Device %s successfully mounted at %s\n", blockDevice, mountPoint)
+	if strings.Contains(string(out), fmt.Sprintf("%s on %s", blockDeviceOS, mountPoint)) {
+		log.Printf("Device %s successfully mounted at %s\n", blockDeviceOS, mountPoint)
 		return nil
 	}
 
