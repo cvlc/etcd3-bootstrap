@@ -1,2 +1,2 @@
-# etcd3-bootstrap
-Bootstraps an etcd3 cluster node
+# ebs-bootstrap
+Bootstraps an EBS volume for an EC2 instance

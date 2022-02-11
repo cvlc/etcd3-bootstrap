@@ -70,8 +70,4 @@ func main() {
 	if err := ensureVolumeMounted(blockDeviceOS, mountPoint); err != nil {
 		panic(err)
 	}
-
-	if err := ensureVolumeWriteable(mountPoint); err != nil {
-		panic(err)
-	}
 }
