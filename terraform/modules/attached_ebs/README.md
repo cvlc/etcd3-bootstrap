@@ -8,7 +8,7 @@ Set the input variable `group` to a unique identifier to use to refer to the gro
 The input variable `attached_ebs` takes a map of volume definitions to attach to instances on boot:
 ```
 module "attached-ebs" {
-  source = "github.com/ondat/etcd-terraform/modules/attached_ebs"
+  source = "github.com/ondat/etcd3-bootstrap/terraform/modules/attached_ebs"
   attached_ebs = { 
     "ondat_data_1": {
       size = 100 # required
