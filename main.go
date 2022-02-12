@@ -2,11 +2,14 @@ package main
 
 import (
 	"flag"
+	"os"
+	"regexp"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/mvisonneau/go-ebsnvme/pkg/ebsnvme"
 )
 
 var (
@@ -61,6 +64,29 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+
+		devices, err := os.ReadDir("/dev/")
+		if err != nil {
+			panic(err)
+		}
+
+		for _, d := range devices {
+			valid, err := regexp.MatchString(`/dev/nvme[0-9]+`, d.Name())
+			if err != nil {
+				panic(err)
+			}
+			if valid {
+				device, err := ebsnvme.ScanDevice(d.Name())
+				if err != nil {
+					panic(err)
+				}
+
+				if device.VolumeID == *volume.VolumeId {
+					blockDeviceOS = device.Name
+					break
+				}
+			}
+		}
 	}
 
 	if err := ensureVolumeInited(blockDeviceOS, fileSystemFormatType, fileSystemFormatArguments); err != nil {
@@ -70,4 +96,5 @@ func main() {
 	if err := ensureVolumeMounted(blockDeviceOS, mountPoint); err != nil {
 		panic(err)
 	}
+
 }

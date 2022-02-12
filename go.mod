@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/aws/aws-sdk-go v1.12.5
 	github.com/jpillora/backoff v0.0.0-20170918002102-8eab2debe79d
+	github.com/mvisonneau/go-ebsnvme v0.0.0-20201026165225-e63797fabc2f
 	github.com/pkg/errors v0.8.0
 )
 
