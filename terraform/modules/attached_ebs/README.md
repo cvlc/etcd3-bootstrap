@@ -39,7 +39,7 @@ module "attached-ebs" {
 
 For airgapped or private environments, the variable `ebs_bootstrap_binary_url` can be used to provide an HTTP/S address from which to retrieve the necessary binary.
 
-Use the output `iam_role_policy_arn` to assign the policy to your ASG node's role.
+Use the output `iam_role_policy_document` to generate and assign the policy to your ASG node's role.
 Use the output `userdata_snippets_by_az` to embed in your ASG's userdata - it's a map of AZ to snippets.
 
 ## Appendix
@@ -64,7 +64,6 @@ No modules.
 |------|------|
 | [aws_dlm_lifecycle_policy.automatic_snapshots](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/dlm_lifecycle_policy) | resource |
 | [aws_ebs_volume.ssd](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ebs_volume) | resource |
-| [aws_iam_policy.data](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy) | resource |
 | [aws_iam_role.dlm_lifecycle_role](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
 | [aws_iam_role_policy.dlm_lifecycle](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy) | resource |
 | [aws_iam_policy_document.ebs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
@@ -82,6 +81,6 @@ No modules.
 
 | Name | Description |
 |------|-------------|
-| <a name="output_iam_role_policy_arn"></a> [iam\_role\_policy\_arn](#output\_iam\_role\_policy\_arn) | IAM role policy ARN to assign to ASG instance role |
+| <a name="output_iam_role_policy_document"></a> [iam\_role\_policy\_document](#output\_iam\_role\_policy\_document) | IAM role policy document to assign to ASG instance role |
 | <a name="output_userdata_snippets_by_az"></a> [userdata\_snippets\_by\_az](#output\_userdata\_snippets\_by\_az) | Map of snippets of userdata to assign to ASG instances by availability zone |
 

@@ -1,6 +1,6 @@
-output "iam_role_policy_arn" {
-  description = "IAM role policy ARN to assign to ASG instance role"
-  value       = aws_iam_policy.data.arn
+output "iam_role_policy_document" {
+  description = "IAM role policy document to assign to ASG instance role"
+  value       = data.aws_iam_policy_document.ebs.json
 }
 
 output "userdata_snippets_by_az" {
