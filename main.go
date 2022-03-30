@@ -39,7 +39,7 @@ func init() {
 
 func main() {
 	// Initialize AWS session
-	awsConfig, err := config.LoadDefaultConfig(context.TODO())
+	awsConfig, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(awsRegion))
 	if err != nil {
 		panic("Error loading AWS config")
 	}
