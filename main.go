@@ -1,14 +1,16 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"io"
 	"os"
 	"regexp"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/ec2metadata"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
+
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/mvisonneau/go-ebsnvme/pkg/ebsnvme"
 )
 
@@ -37,30 +39,38 @@ func init() {
 
 func main() {
 	// Initialize AWS session
-	awsSession := session.Must(session.NewSession())
+	awsConfig, err := config.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		panic("Error loading AWS config")
+	}
 
 	// Create ec2 and metadata svc clients with specified region
-	ec2SVC := ec2.New(awsSession, aws.NewConfig().WithRegion(awsRegion))
-	metadataSVC := ec2metadata.New(awsSession, aws.NewConfig().WithRegion(awsRegion))
+	ec2SVC := ec2.NewFromConfig(awsConfig)
+	metadataSVC := imds.NewFromConfig(awsConfig)
 
 	// obtain current AZ, required for finding volume
-	availabilityZone, err := metadataSVC.GetMetadata("placement/availability-zone")
+	azQueryOutput, err := metadataSVC.GetMetadata(context.TODO(), &imds.GetMetadataInput{Path: "placement/availability-zone"})
+	if err != nil {
+		panic("Error querying AWS metadata")
+	}
+	availabilityZoneByte, err := io.ReadAll(azQueryOutput.Content)
 	if err != nil {
 		panic(err)
 	}
 
 	if useEBS {
-		volume, err := volumeFromName(ec2SVC, ebsVolumeName, availabilityZone)
+		volume, err := volumeFromName(ec2SVC, ebsVolumeName, string(availabilityZoneByte))
 		if err != nil {
 			panic(err)
 		}
 
-		instanceID, err := metadataSVC.GetMetadata("instance-id")
+		instanceIDQueryOutput, err := metadataSVC.GetMetadata(context.TODO(), &imds.GetMetadataInput{Path: "instance-id"})
 		if err != nil {
 			panic(err)
 		}
+		instanceIDByte, err := io.ReadAll(instanceIDQueryOutput.Content)
 
-		err = attachVolume(ec2SVC, instanceID, volume)
+		err = attachVolume(ec2SVC, string(instanceIDByte), volume)
 		if err != nil {
 			panic(err)
 		}
