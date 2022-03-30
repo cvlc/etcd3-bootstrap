@@ -18,7 +18,7 @@ locals {
         }),
     }) : ""])
   }
-  ebs_bootstrap_binary     = "https://github.com/ondat/etcd3-bootstrap/releases/download/v0.0.3/ebs-bootstrap-linux-amd64"
+  ebs_bootstrap_binary     = "https://github.com/ondat/etcd3-bootstrap/releases/download/v0.1.0-alpha/ebs-bootstrap-linux-amd64"
   ebs_bootstrap_binary_url = var.ebs_bootstrap_binary_url == null ? local.ebs_bootstrap_binary : var.ebs_bootstrap_binary_url
 
 }
