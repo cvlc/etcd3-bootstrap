@@ -9,8 +9,8 @@ ${depends}
 
 [Service]
 Type=oneshot
-ExecStartPre=curl -C - -L -o /tmp/ebs-bootstrap ${ebs_bootstrap_binary_url}
-ExecStartPre=chmod +x /tmp/ebs-bootstrap
+ExecStartPre=/usr/bin/curl -C - -L -o /tmp/ebs-bootstrap ${ebs_bootstrap_binary_url}
+ExecStartPre=/bin/chmod +x /tmp/ebs-bootstrap
 RemainAfterExit=true
 ExecStart=/tmp/ebs-bootstrap \
     -ebs-volume-name=${ebs_volume_name} \
