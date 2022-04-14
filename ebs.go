@@ -131,7 +131,7 @@ func ensureVolumeInited(
 
 	log.Printf("Checking for existing filesystem on device: %s\n", blockDeviceOS)
 
-	if err := exec.Command("sudo", "/usr/sbin/blkid", blockDeviceOS).Run(); err == nil {
+	if err := exec.Command("sudo", "blkid", blockDeviceOS).Run(); err == nil {
 		log.Println("Found existing filesystem")
 		return nil
 	}
@@ -141,7 +141,7 @@ func ensureVolumeInited(
 	// format volume here
 	for {
 		time.Sleep(b.Duration())
-		cmd := exec.Command("sudo", "/usr/sbin/mkfs."+fileSystemFormatType, blockDeviceOS)
+		cmd := exec.Command("sudo", "mkfs."+fileSystemFormatType, blockDeviceOS)
 		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 		if err := cmd.Run(); err != nil {
 			log.Println(err)
