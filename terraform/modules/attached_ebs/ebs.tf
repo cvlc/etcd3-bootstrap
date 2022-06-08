@@ -1,5 +1,5 @@
 resource "aws_ebs_volume" "ssd" {
-  for_each = { for key, value in var.attached_ebs : key => value }
+  for_each = { for key, value in var.attached_ebs : key => value if(contains(keys(value), "ephemeral") != true) }
 
   snapshot_id       = lookup(each.value, "restore_snapshot", null)
   availability_zone = each.value["availability_zone"]

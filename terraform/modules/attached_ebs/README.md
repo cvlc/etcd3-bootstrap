@@ -1,25 +1,41 @@
 # attached_ebs
+
 ## Introduction
-attached_ebs is a Terraform module used to generate persistent EBS volumes and attach them to auto-scaled instances, ensuring that snapshots are taken of them daily.
+
+attached_ebs is a Terraform module used to generate persistent EBS or EC2
+Instance Store volumes and attach them to auto-scaled instances, also managing
+daily snapshots for EBS instances.
 
 ## Usage
-Set the input variable `group` to a unique identifier to use to refer to the group of EBS disks. Make sure to tag all of your instances with `Group=XXXX` (with `XXXX` as the value you set for `group`). This is used by the IAM policy to enable permissions for attaching volumes within the group. 
 
-The input variable `attached_ebs` takes a map of volume definitions to attach to instances on boot:
-```
+Set the input variable `group` to a unique identifier to use to refer to the
+group of disks. Make sure to tag all of your instances with `Group=XXXX`
+(with `XXXX` as the value you set for `group`). This is used by the IAM policy
+to enable permissions for attaching EBS volumes within the group.
+
+The input variable `attached_ebs` takes a map of volume definitions to attach
+to instances on boot:
+
+```hcl
 module "attached-ebs" {
   source = "github.com/ondat/etcd3-bootstrap/terraform/modules/attached_ebs"
-  attached_ebs = { 
-    "ondat_data_1": {
-      size = 100 # required
-      availability_zone = eu-west-1a # required
+  attached_ebs = {
+    "ondat_data_1": { # Basic EBS example
+      size = 100
+      availability_zone = eu-west-1a
       encrypted = true
       volume_type = gp3
       block_device_aws = "/dev/xvda1"
       block_device_os = "/dev/nvme0n1"
       block_device_mount_path = "/var/lib/data0"
     }
-    "ondat_data_2": {
+    "ondat_data_2": { # EC2 Instance Store
+      availability_zone = eu-west-1a
+      ephemeral = true
+      block_device_os = "/dev/nvme1n1"
+      block_device_mount_path = "/var/lib/data0"
+    }
+    "ondat_data_3": { # Full EBS example
       size = 100
       availability_zone = eu-west-1a
       dependson = ["ondat_data_1"]
@@ -30,17 +46,21 @@ module "attached-ebs" {
       throughput = 150000
       kms_key_id = "arn:aws::kms/..."
       block_device_aws = /dev/xvda2
-      block_device_os = /dev/nvme1n1
+      block_device_os = /dev/nvme2n1
       block_device_mount_path = /var/lib/data1
     }
   }
 }
 ```
 
-For airgapped or private environments, the variable `ebs_bootstrap_binary_url` can be used to provide an HTTP/S address from which to retrieve the necessary binary.
+For airgapped or private environments, use the variable `ebs_bootstrap_binary_url`
+to provide an HTTP/S address from which to retrieve the necessary binary.
 
-Use the output `iam_role_policy_document` to generate and assign the policy to your ASG node's role.
-Use the output `userdata_snippets_by_az` to embed in your ASG's userdata - it's a map of AZ to snippets.
+Use the output `iam_role_policy_document` to generate and assign the policy to
+your ASG node's role.
+
+Use the output `userdata_snippets_by_az` to embed in your ASG's userdata -
+it's a map of AZ to snippets.
 
 ## Appendix
 
@@ -52,7 +72,7 @@ No requirements.
 
 | Name | Version |
 |------|---------|
-| <a name="provider_aws"></a> [aws](#provider\_aws) | n/a |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | 4.16.0 |
 
 ### Modules
 
@@ -83,4 +103,3 @@ No modules.
 |------|-------------|
 | <a name="output_iam_role_policy_document"></a> [iam\_role\_policy\_document](#output\_iam\_role\_policy\_document) | IAM role policy document to assign to ASG instance role |
 | <a name="output_userdata_snippets_by_az"></a> [userdata\_snippets\_by\_az](#output\_userdata\_snippets\_by\_az) | Map of snippets of userdata to assign to ASG instances by availability zone |
-

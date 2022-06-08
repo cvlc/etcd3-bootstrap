@@ -13,8 +13,14 @@ ExecStartPre=/usr/bin/curl -C - -L -o /tmp/ebs-bootstrap ${ebs_bootstrap_binary_
 ExecStartPre=/bin/chmod +x /tmp/ebs-bootstrap
 RemainAfterExit=true
 ExecStart=/tmp/ebs-bootstrap \
+%{ if ephemeral ~}
+    -use-ebs=false \
+    -block-device-os=${block_device_os} \
+    -mount-point=${block_device_mount_path}
+%{ else ~}
     -ebs-volume-name=${ebs_volume_name} \
-    -block-device-aws=${ebs_block_device_aws} \
-    -block-device-os=${ebs_block_device_os} \
+    -block-device-aws=${block_device_aws} \
+    -block-device-os=${block_device_os} \
     -aws-region=${region} \
-    -mount-point=${ebs_block_device_mount_path}
+    -mount-point=${block_device_mount_path}
+%{ endif ~}
